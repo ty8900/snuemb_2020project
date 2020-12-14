@@ -1,0 +1,35 @@
+11-21
+train-bert (bert4rec) 구현 사항들
+-ml-1m dataset 이용, uid, sid, rating, timestamp 순으로 받아옴
+-input은 item sequence, output oredered set of items
+
+gru4rec도 이 데이터셋을 받아와, 새 dataloader에서 활용해보자!
+-dataset은 같이 받아오기
+-SASrec 논문에서 보니 each user's feedback sequence 를 session으로 보았다 함.
+-> 그럼 한 유저마다의 item sequence가 1 session? SessionID = UserID로 본건가?
+
+-input / output 확인할것
+
+11-27 ~ 11/30 todos
+-gru4rec model 구현 (△)
+-dataloader 찍어보며 I/O 맞추기
+-trainer 짜기
+-template에 input_size,output_size적어야 돌려짐.
+
+11-28
+-gru4rec's input / target
+batch of item indices from session parallel minibatch = input
+next batch item indices '' = target
+-logit
+variable that stores logits for next item indices
+
+-model 구현하였으니 이에맞춰 input/output짜맞춰보기
+-dataloader에서 data구현 방식을 제대로 이해할 필요 있어 보임. 일단 전처리는(dataset)
+그대로 둬야 비교가 될 터이니, dataloader에서 어떻게 할지가 관건일 것
+-template도 너무 종류가 많아 골치가 아픔 갈길 개멀다
+inputsize/outputsize찾아야함. embeddingsize얼마할지도 봐야함.
+
+11-30
+session ID = userID 정보입수
+혹은 timestamp 기준으로 session을 짜도 괜찮을듯. (두가지 방법)
+일단 userID라 가정하면 기존 dataloader사용해도 될것같음.
