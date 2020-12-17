@@ -18,8 +18,8 @@ class SrgnnTrainer(AbstractTrainer):
 
     def calculate_loss(self, batch):
         d = self.model(batch)
-        loss, loss_cnt = d['loss'], d['loss_cnt']
-        loss = (loss * loss_cnt).sum() / loss_cnt.sum()
+        loss = d['loss']
+        #loss = (loss * loss_cnt).sum() / loss_cnt.sum()
         return loss
 
     def calculate_metrics(self, batch):
