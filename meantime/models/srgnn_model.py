@@ -2,6 +2,9 @@ from .srgnn import SrgnnBaseModel
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import math
+import numpy as np
+
 
 class GNN(nn.Module):
     def __init__(self, args):
@@ -31,8 +34,8 @@ class GNN(nn.Module):
         input_out = torch.matmul(A[:, :, edge_size:2 * edge_size], self.linear_out_edge(hidden)) + self.b_out
         input = torch.cat([input_in,input_out],2)
         ## Eq (2,3) : caculate gate states. and get reset / update gate
-        gate_input = F.linear(input, w_input, b_input)
-        gate_hidden = F.linear(hidden, w_hidden, b_hidden)
+        gate_input = F.linear(input, self.w_input, self.b_input)
+        gate_hidden = F.linear(hidden, self.w_hidden, self.b_hidden)
         i_reset, i_update, i_next = gate_input.chunk(3,2)
         h_reset, h_update, h_next = gate_hidden.chunk(3, 2)
         reset_gate = torch.sigmoid(i_reset + h_reset)
@@ -52,14 +55,14 @@ class SrgnnModel(SrgnnBaseModel):
         super().__init__(args)
         self.output_info = args.output_info
         self.hidden_units = args.hidden_units
-        self.n_node = args.n_node # ml-1m 3900 item, so 3901
+        self.n_node = args.n_node # 3416
         self.batch_size = args.train_batch_size
         self.hybrid_vector = args.hybrid_vector # if local+global vector. true
         self.embedding = nn.Embedding(self.n_node, self.hidden_units)
         self.gnn = GNN(args)
 
         self.init_weights()
-        # self.reset_parameters()
+        self.reset_parameters()
 
         self.w1 = nn.Linear(self.hidden_units, self.hidden_units, bias=True)
         self.w2 = nn.Linear(self.hidden_units, self.hidden_units, bias=True)
@@ -79,33 +82,38 @@ class SrgnnModel(SrgnnBaseModel):
     def get_logits(self, d):
         ## make embedding
         hidden = self.embedding(d['item'])
-        hidden = self.gnn(d['graph'], hidden)
+        hidden = self.gnn(d['graph'], hidden) ## batch, len, hidden_size
 
+        if torch.LongTensor([-1] * self.hidden_units).cuda() in hidden[:][0] :
+            print(d['graph'])
+            exit()
         ## get latent vector of input
         token = d['tokens']
         mask = d['masks']
         get_latent = lambda i: hidden[i][token[i]]
         seq_hidden = torch.stack([get_latent(i) for i in torch.arange(len(token)).long()])
-
         ## caculate session embedding/ attention Eq (6)
         local_emb = seq_hidden[torch.arange(mask.shape[0]).long(), torch.sum(mask,1) - 1]
         q1 = self.w1(local_emb).view(local_emb.shape[0], 1, local_emb.shape[1])
         q2 = self.w2(seq_hidden)
         alpha = self.wa(torch.sigmoid(q1 + q2))
         global_emb = torch.sum(alpha * hidden * mask.view(mask.shape[0],-1,1).float(), 1)
+
         ## local + global vector
         if self.hybrid_vector:
             global_emb = self.ws(torch.cat([global_emb,local_emb], 1))
-
         ## get final output
         vi = self.embedding.weight[1:].transpose(1,0)
+
         return torch.matmul(global_emb, vi)
 
-    ## from original code
+
     def get_scores(self, d, logits):
-        scores = logits.topk(20)[1]
+        scores = logits.topk(20)[1].cpu()
+        targets = d['labels'].cpu()
+        masks = d['masks'].cpu()
         hit, mrr = [], []
-        for score, target, mask in zip(scores, d['labels'], d['masks']):
+        for score, target, mask in zip(scores, targets, masks):
             hit.append(np.isin(target - 1,score))
             if len(np.where(score == target - 1)[0]) == 0:
                 mrr.append(0)

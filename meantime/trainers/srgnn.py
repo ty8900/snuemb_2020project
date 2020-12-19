@@ -1,5 +1,5 @@
 from .base import AbstractTrainer
-from .utils import recalls_and_ndcgs_for_ks
+from .utils import recalls_and_ndcgs_for_ks_sr
 
 ## need to change : after create model.
 class SrgnnTrainer(AbstractTrainer):
@@ -23,9 +23,16 @@ class SrgnnTrainer(AbstractTrainer):
         return loss
 
     def calculate_metrics(self, batch):
+        """
         labels = batch['labels']
         scores = self.model(batch)['scores']  # B x C
         # scores = scores.gather(1, candidates)  # B x C
 
         metrics = recalls_and_ndcgs_for_ks(scores, labels, self.metric_ks)
+        return metrics
+        """
+        d = self.model(batch)
+        scores = d['logits']
+        labels = d['labels']
+        metrics = recalls_and_ndcgs_for_ks_sr(scores, labels, self.metric_ks)
         return metrics

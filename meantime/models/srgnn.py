@@ -14,11 +14,12 @@ class SrgnnBaseModel(BaseModel, metaclass=ABCMeta):
         ret = {'logits': logits}
         if self.training:
             labels = d['labels']
-            loss, loss_cnt = self.get_loss(logits, labels)
+            loss = self.get_loss(logits, labels)
             ret['loss'] = loss
-            ret['loss_cnt'] = loss_cnt
+            #ret['loss_cnt'] = loss_cnt
         else:
-            ret['scores'] = logits
+            ret['hit'], ret['mrr'] = self.get_scores(d, logits)
+            ret['labels'] = d['labels']
         return ret
 
     @abstractmethod
@@ -30,6 +31,5 @@ class SrgnnBaseModel(BaseModel, metaclass=ABCMeta):
         pass
 
     def get_loss(self, logits, labels):
-
-        loss = self.ce(logits, labels - 1) # why -1?
+        loss = self.ce(logits, (labels - 1).squeeze()) # why -1?
         return loss

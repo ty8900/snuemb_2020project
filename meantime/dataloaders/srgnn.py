@@ -31,7 +31,7 @@ class SrgnnDataloader(AbstractDataloader):
 class SrgnnTrainDataset(data_utils.Dataset):
     def __init__(self, args, dataset, neg_samples, rng, train_ranges):
         self.args = args
-        self.user2dict = dataset['user2dict'] # session dict
+        self.user2dict = dataset['user2dict'] # session dict / 10% of dict
         self.users = sorted(self.user2dict.keys())
         self.train_window = args.train_window # 100
         self.max_len = args.max_len
@@ -49,6 +49,7 @@ class SrgnnTrainDataset(data_utils.Dataset):
 
         ## is it needed?
         self.neg_samples = neg_samples
+        self.ctr = 0
 
     def get_rng_state(self):
         return self.rng.getstate()
@@ -94,20 +95,22 @@ class SrgnnTrainDataset(data_utils.Dataset):
             i_label = seq[-i]
             labels += [i_label]
             inputs += [seq[:-i]]
-        curr = np.random.randint(0,max_item_len)
+        curr = np.random.randint(1,max_item_len) # session limit
         inputs = inputs[curr]
         labels = [labels[curr]]
         ## second, pad all inputs and generate mask.
         item_lens = len(inputs)
-        inputs = inputs + [0] * (max_item_len - item_lens)
-        masks = [1] * item_lens + [0] * (max_item_len - item_lens)
+        #inputs = [0] * (self.max_len - item_lens) + inputs
+        #masks = [0] * (self.max_len - item_lens) + [1] * item_lens
+        inputs = inputs + [0] * (self.max_len - item_lens)
+        masks = [1] * item_lens + [0] * (self.max_len - item_lens)
 
         ## third, make graph with inputs
         item_indices, n_node, graph_A, alias_inputs = [], [], [], []
         n_node = len(np.unique(inputs))
         node = np.unique(inputs)
-        item_indices = node.tolist() + (n_node - len(node)) * [0]
-        u_A = np.zeros((n_node, n_node))
+        item_indices = node.tolist()[1:] + (self.max_len - len(node) + 1) * [0]
+        u_A = np.zeros((self.max_len, self.max_len))
         for i in np.arange(len(inputs) - 1):
             if inputs[i + 1] == 0:
                 break
@@ -137,6 +140,14 @@ class SrgnnTrainDataset(data_utils.Dataset):
             days = days[beg:end]
             d['days'] = torch.LongTensor(days)
 
+        """
+        for key in d.keys():
+            print(key)
+            print(d[key])
+        self.ctr+=1
+        if self.ctr > 4:
+            exit()
+        """
         return d
 
 class SrgnnEvalDataset(data_utils.Dataset):
@@ -170,9 +181,11 @@ class SrgnnEvalDataset(data_utils.Dataset):
         inputs = seq[:-1] + [0]
         masks = [1] * (len(inputs) - 1) + [0]
         n_node = len(inputs)
+        inputs = inputs + [0] * (self.max_len - n_node)
+        masks = masks + [0] * (self.max_len - n_node)
         node = np.unique(inputs)
-        item_indices = (node.tolist())
-        u_A = np.zeros((n_node, n_node))
+        item_indices = node.tolist() + [0] * (self.max_len - len(node))
+        u_A = np.zeros((self.max_len, self.max_len))
         for i in np.arange(len(inputs) - 1):
             if inputs[i + 1] == 0:
                 break
