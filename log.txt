@@ -58,3 +58,8 @@ dataloader 구현
 이제 model 구현 하면 됨. GNN, session graph.
 meantime의 base모델 구조와 조금 다른데, 이를 어떻게 잘 녹일지 고민해 볼 필요가 있음.
 일단 오늘은 여기까지.
+
+12-18
+model train 과정 구현 완료. dataloader 디버깅중
+우선 batch사이즈가 안맞는듯. 이걸 padding을 통해 맞게 한다는 것이 지 max_session length에 맞춰서
+오류가 난 것 같다. 내일 고치고 돌려보기
