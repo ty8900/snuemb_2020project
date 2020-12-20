@@ -31,7 +31,7 @@ class GNN(nn.Module):
         ## Eq (1) : caculate input
         edge_size = A.shape[1]
         input_in = torch.matmul(A[:,:,:edge_size], self.linear_in_edge(hidden)) + self.b_in
-        input_out = torch.matmul(A[:, :, edge_size:2 * edge_size], self.linear_out_edge(hidden)) + self.b_out
+        input_out = torch.matmul(A[:, :, edge_size:(2 * edge_size)], self.linear_out_edge(hidden)) + self.b_out
         input = torch.cat([input_in,input_out],2)
         ## Eq (2,3) : caculate gate states. and get reset / update gate
         gate_input = F.linear(input, self.w_input, self.b_input)
@@ -55,7 +55,7 @@ class SrgnnModel(SrgnnBaseModel):
         super().__init__(args)
         self.output_info = args.output_info
         self.hidden_units = args.hidden_units
-        self.n_node = args.n_node # 3416
+        self.n_node = args.num_items + 1
         self.batch_size = args.train_batch_size
         self.hybrid_vector = args.hybrid_vector # if local+global vector. true
         self.embedding = nn.Embedding(self.n_node, self.hidden_units)
@@ -98,7 +98,6 @@ class SrgnnModel(SrgnnBaseModel):
         q2 = self.w2(seq_hidden)
         alpha = self.wa(torch.sigmoid(q1 + q2))
         global_emb = torch.sum(alpha * hidden * mask.view(mask.shape[0],-1,1).float(), 1)
-
         ## local + global vector
         if self.hybrid_vector:
             global_emb = self.ws(torch.cat([global_emb,local_emb], 1))
@@ -108,18 +107,4 @@ class SrgnnModel(SrgnnBaseModel):
         return torch.matmul(global_emb, vi)
 
 
-    def get_scores(self, d, logits):
-        scores = logits.topk(20)[1].cpu()
-        targets = d['labels'].cpu()
-        masks = d['masks'].cpu()
-        hit, mrr = [], []
-        for score, target, mask in zip(scores, targets, masks):
-            hit.append(np.isin(target - 1,score))
-            if len(np.where(score == target - 1)[0]) == 0:
-                mrr.append(0)
-            else:
-                mrr.append(1 / (np.where(score == target - 1)[0][0] + 1))
-        hit = np.mean(hit) * 100
-        mrr = np.mean(mrr) * 100
-        return [hit, mrr]
 
