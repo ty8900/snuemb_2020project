@@ -95,7 +95,7 @@ class SrgnnTrainDataset(data_utils.Dataset):
             i_label = seq[-i]
             labels += [i_label]
             inputs += [seq[:-i]]
-        curr = np.random.randint(1,max_item_len) # session limit
+        curr = np.random.randint(0,max_item_len) # session limit
         inputs = inputs[curr]
         labels = [labels[curr]]
         ## second, pad all inputs and generate mask.
