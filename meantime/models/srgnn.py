@@ -18,7 +18,7 @@ class SrgnnBaseModel(BaseModel, metaclass=ABCMeta):
             ret['loss'] = loss
             #ret['loss_cnt'] = loss_cnt
         else:
-            ret['hit'], ret['mrr'] = self.get_scores(d, logits)
+            #ret['hit'], ret['mrr'] = self.get_scores(d, logits)
             ret['labels'] = d['labels']
         return ret
 

@@ -49,7 +49,6 @@ class SrgnnTrainDataset(data_utils.Dataset):
 
         ## is it needed?
         self.neg_samples = neg_samples
-        self.ctr = 0
 
     def get_rng_state(self):
         return self.rng.getstate()
@@ -89,27 +88,18 @@ class SrgnnTrainDataset(data_utils.Dataset):
         ## get session beg~end
         ## diff from bert
         ## first, generate n-1 sessions and select randolmly one session.
-        inputs, labels = [], []
-        max_item_len = len(seq) - 1
-        for i in range(1, len(seq)):
-            i_label = seq[-i]
-            labels += [i_label]
-            inputs += [seq[:-i]]
-        curr = np.random.randint(0,max_item_len) # session limit
-        inputs = inputs[curr]
-        labels = [labels[curr]]
+        max_item_len = len(seq)
+        curr = np.random.randint(2,max_item_len) # session limit
+        inputs = seq[:curr]
+        labels = [seq[curr]]
         ## second, pad all inputs and generate mask.
         item_lens = len(inputs)
-        #inputs = [0] * (self.max_len - item_lens) + inputs
-        #masks = [0] * (self.max_len - item_lens) + [1] * item_lens
         inputs = inputs + [0] * (self.max_len - item_lens)
         masks = [1] * item_lens + [0] * (self.max_len - item_lens)
 
         ## third, make graph with inputs
-        item_indices, n_node, graph_A, alias_inputs = [], [], [], []
-        n_node = len(np.unique(inputs))
         node = np.unique(inputs)
-        item_indices = node.tolist()[1:] + (self.max_len - len(node) + 1) * [0]
+        item_indices = node.tolist() + (self.max_len - len(node)) * [0]
         u_A = np.zeros((self.max_len, self.max_len))
         for i in np.arange(len(inputs) - 1):
             if inputs[i + 1] == 0:
@@ -126,19 +116,8 @@ class SrgnnTrainDataset(data_utils.Dataset):
         u_A = np.concatenate([u_A_in, u_A_out]).transpose()
         graph_A = u_A
         alias_inputs = [np.where(node == i)[0][0] for i in inputs]
-
         d = {'tokens': torch.LongTensor(alias_inputs), 'labels': torch.LongTensor(labels), 'masks': torch.LongTensor(masks),
              'graph': torch.FloatTensor(graph_A), 'item': torch.LongTensor(item_indices)}
-
-        if self.output_timestamps:
-            timestamps = self.user2dict[user]['timestamps']
-            timestamps = timestamps[beg:end]
-            d['timestamps'] = torch.LongTensor(timestamps)
-
-        if self.output_days:
-            days = self.user2dict[user]['days']
-            days = days[beg:end]
-            d['days'] = torch.LongTensor(days)
 
         """
         for key in d.keys():
@@ -163,6 +142,7 @@ class SrgnnEvalDataset(data_utils.Dataset):
 
         ## is it needed?
         self.neg_samples = neg_samples
+        self.ctr = 0
 
     def __len__(self):
         return len(self.positions)
@@ -174,12 +154,11 @@ class SrgnnEvalDataset(data_utils.Dataset):
         beg = max(0, pos + 1 - self.max_len)
         end = pos + 1
         seq = seq[beg:end]
-
         ## answer : the last item (in position)
         labels = [seq[-1]]
-
-        inputs = seq[:-1] + [0]
-        masks = [1] * (len(inputs) - 1) + [0]
+        curr = np.random.randint(5,10)
+        inputs = seq[-1 - curr:-1] + [0] * (curr + 1)
+        masks = [1] * (len(inputs) - curr-1) + [0] * (curr + 1)
         n_node = len(inputs)
         inputs = inputs + [0] * (self.max_len - n_node)
         masks = masks + [0] * (self.max_len - n_node)
@@ -205,20 +184,6 @@ class SrgnnEvalDataset(data_utils.Dataset):
         d = {'tokens': torch.LongTensor(alias_inputs), 'labels': torch.LongTensor(labels),
              'masks': torch.LongTensor(masks),
              'graph': torch.FloatTensor(graph_A), 'item': torch.LongTensor(item_indices)}
-
-        if self.output_timestamps:
-            timestamps = self.user2dict[user]['timestamps']
-            timestamps = timestamps[beg:end]
-            timestamps = [0] * padding_len + timestamps
-            d['timestamps'] = torch.LongTensor(timestamps)
-
-        if self.output_days:
-            days = self.user2dict[user]['days']
-            days = days[beg:end]
-            days = [0] * padding_len + days
-            d['days'] = torch.LongTensor(days)
-
         return d
-
 
 
