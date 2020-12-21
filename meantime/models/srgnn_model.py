@@ -1,3 +1,4 @@
+
 from .srgnn import SrgnnBaseModel
 import torch
 import torch.nn as nn
@@ -106,5 +107,17 @@ class SrgnnModel(SrgnnBaseModel):
 
         return torch.matmul(global_emb, vi)
 
-
-
+    def get_scores(self, d, logits):
+        scores = logits.topk(20)[1].cpu()
+        targets = d['labels'].cpu()
+        masks = d['masks'].cpu()
+        hit, mrr = [], []
+        for score, target, mask in zip(scores, targets, masks):
+            hit.append(np.isin(target - 1,score))
+            if len(np.where(score == target - 1)[0]) == 0:
+                mrr.append(0)
+            else:
+                mrr.append(1 / (np.where(score == target - 1)[0][0] + 1))
+        hit = np.mean(hit) * 100
+        mrr = np.mean(mrr) * 100
+        return [hit, mrr]
