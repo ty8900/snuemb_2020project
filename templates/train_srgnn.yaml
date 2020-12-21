@@ -18,7 +18,7 @@ dataloader_random_seed: 0.0
 train_batch_size: 512
 val_batch_size: 512
 test_batch_size: 512
-train_window: 25
+train_window: 10
 dataloader_output_timestamp: false
 dataloader_output_days: false
 dataloader_output_user: false
@@ -52,7 +52,7 @@ saturation_wait_epochs: 20
 model_code: srgnn
 model_init_seed: 0
 model_init_range: 0.02
-max_len: 50
+max_len: 20
 hidden_units: 100
 n_node: 3417
 hybrid_vector: true
@@ -75,7 +75,7 @@ absolute_kernel_types: null
 relative_kernel_types: null
 experiment_root: experiments
 experiment_group: test
-experiment_name: srgnn_mod_50
+experiment_name: srgnn_mod_20
 wandb_project_name: null
 wandb_run_name: null
 wandb_run_id: null
