@@ -20,34 +20,39 @@ class SrgnnDataloader(AbstractDataloader):
 
     def _get_train_dataset(self):
         train_ranges = self.train_targets
-        dataset = SrgnnTrainDataset(self.args, self.dataset, self.train_negative_samples, self.rng, train_ranges)
+        dataset = SrgnnTrainDataset(self.args, self.dataset,
+                                    self.train_negative_samples,
+                                    self.rng, train_ranges)
         return dataset
 
     def _get_eval_dataset(self, mode):
-        positions = self.validation_targets if mode=='val' else self.test_targets
-        dataset = SrgnnEvalDataset(self.args, self.dataset, self.test_negative_samples, positions)
+        positions = self.validation_targets\
+            if mode == 'val' else self.test_targets
+        dataset = SrgnnEvalDataset(self.args, self.dataset,
+                                   self.test_negative_samples, positions)
         return dataset
+
 
 class SrgnnTrainDataset(data_utils.Dataset):
     def __init__(self, args, dataset, neg_samples, rng, train_ranges):
         self.args = args
-        self.user2dict = dataset['user2dict'] # session dict / 10% of dict
+        self.user2dict = dataset['user2dict']  # session dict / 10% of dict
         self.users = sorted(self.user2dict.keys())
-        self.train_window = args.train_window # 100
+        self.train_window = args.train_window  # 100
         self.max_len = args.max_len
         self.num_users = len(dataset['umap'])
         self.num_items = len(dataset['smap'])
         self.rng = rng
         self.train_ranges = train_ranges
 
-        ## calculate session
+        # calculate session
         self.index2user_and_offsets = self.populate_indices()
 
         self.output_timestamps = args.dataloader_output_timestamp
         self.output_days = args.dataloader_output_days
         self.output_user = args.dataloader_output_user
 
-        ## is it needed?
+        # is it needed?
         self.neg_samples = neg_samples
 
     def get_rng_state(self):
@@ -56,7 +61,7 @@ class SrgnnTrainDataset(data_utils.Dataset):
     def set_rng_state(self, state):
         return self.rng.setstate(state)
 
-    ## maybe session length tokenizing
+    # maybe session length tokenizing
     def populate_indices(self):
         index2user_and_offsets = {}
         i = 0
@@ -68,7 +73,7 @@ class SrgnnTrainDataset(data_utils.Dataset):
             if W is None or W == 0:
                 offsets = [pos]
             else:
-                offsets = list(range(pos, T-1, -W)) # pos ~ T
+                offsets = list(range(pos, T-1, -W))  # pos ~ T
                 if len(offsets) == 0:
                     offsets = [pos]
             for offset in offsets:
@@ -85,19 +90,19 @@ class SrgnnTrainDataset(data_utils.Dataset):
         beg = max(0, offset-self.max_len)
         end = offset
         seq = seq[beg:end]
-        ## get session beg~end
-        ## diff from bert
-        ## first, generate n-1 sessions and select randolmly one session.
+        # get session beg~end
+        # diff from bert
+        # first, generate n-1 sessions and select randolmly one session.
         max_item_len = len(seq)
-        curr = np.random.randint(2,max_item_len) # session limit
+        curr = np.random.randint(2, max_item_len)  # session limit
         inputs = seq[:curr]
         labels = [seq[curr]]
-        ## second, pad all inputs and generate mask.
+        # second, pad all inputs and generate mask.
         item_lens = len(inputs)
         inputs = inputs + [0] * (self.max_len - item_lens)
         masks = [1] * item_lens + [0] * (self.max_len - item_lens)
 
-        ## third, make graph with inputs
+        # third, make graph with inputs
         node = np.unique(inputs)
         item_indices = node.tolist() + (self.max_len - len(node)) * [0]
         u_A = np.zeros((self.max_len, self.max_len))
@@ -116,8 +121,11 @@ class SrgnnTrainDataset(data_utils.Dataset):
         u_A = np.concatenate([u_A_in, u_A_out]).transpose()
         graph_A = u_A
         alias_inputs = [np.where(node == i)[0][0] for i in inputs]
-        d = {'tokens': torch.LongTensor(alias_inputs), 'labels': torch.LongTensor(labels), 'masks': torch.LongTensor(masks),
-             'graph': torch.FloatTensor(graph_A), 'item': torch.LongTensor(item_indices)}
+        d = {'tokens': torch.LongTensor(alias_inputs),
+             'labels': torch.LongTensor(labels),
+             'masks': torch.LongTensor(masks),
+             'graph': torch.FloatTensor(graph_A),
+             'item': torch.LongTensor(item_indices)}
 
         """
         for key in d.keys():
@@ -128,6 +136,7 @@ class SrgnnTrainDataset(data_utils.Dataset):
             exit()
         """
         return d
+
 
 class SrgnnEvalDataset(data_utils.Dataset):
     def __init__(self, args, dataset, neg_samples, positions):
@@ -140,7 +149,7 @@ class SrgnnEvalDataset(data_utils.Dataset):
         self.output_days = args.dataloader_output_days
         self.output_user = args.dataloader_output_user
 
-        ## is it needed?
+        # is it needed?
         self.neg_samples = neg_samples
         self.ctr = 0
 
@@ -154,9 +163,9 @@ class SrgnnEvalDataset(data_utils.Dataset):
         beg = max(0, pos + 1 - self.max_len)
         end = pos + 1
         seq = seq[beg:end]
-        ## answer : the last item (in position)
+        # answer : the last item (in position)
         labels = [seq[-1]]
-        curr = np.random.randint(5,10)
+        curr = np.random.randint(5, 10)
         inputs = seq[-1 - curr:-1] + [0] * (curr + 1)
         masks = [1] * (len(inputs) - curr-1) + [0] * (curr + 1)
         n_node = len(inputs)
@@ -181,9 +190,9 @@ class SrgnnEvalDataset(data_utils.Dataset):
         graph_A = u_A
         alias_inputs = ([np.where(node == i)[0][0] for i in inputs])
 
-        d = {'tokens': torch.LongTensor(alias_inputs), 'labels': torch.LongTensor(labels),
+        d = {'tokens': torch.LongTensor(alias_inputs),
+             'labels': torch.LongTensor(labels),
              'masks': torch.LongTensor(masks),
-             'graph': torch.FloatTensor(graph_A), 'item': torch.LongTensor(item_indices)}
+             'graph': torch.FloatTensor(graph_A),
+             'item': torch.LongTensor(item_indices)}
         return d
-
-
