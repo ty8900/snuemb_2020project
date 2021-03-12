@@ -9,8 +9,9 @@ class SrgnnBaseModel(BaseModel, metaclass=ABCMeta):
         super().__init__(args)
         self.ce = nn.CrossEntropyLoss()
 
-    # d : batch * dict
     def forward(self, d):
+        # d : batch * dict
+        # logits : batch * I(Item #)
         logits = self.get_logits(d)
         ret = {'logits': logits}
         if self.training:
@@ -33,4 +34,6 @@ class SrgnnBaseModel(BaseModel, metaclass=ABCMeta):
     def get_loss(self, logits, labels):
         loss = self.ce(logits, (labels - 1).squeeze())
         # why -1?
+        # => our model calculate 0-order because of graph nodes.
+        # so we minus 1 at labels to match index.
         return loss

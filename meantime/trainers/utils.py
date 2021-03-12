@@ -1,8 +1,9 @@
 import torch
 import numpy as np
 
-## define recall@20 :
-## By top k(=20) prediction, recall@20 = hits / answer#(=batch_size)
+
+# define recall@20 :
+# By top k(=20) prediction, recall@20 = hits / answer#(=batch_size)
 def recall(scores, labels, k):
     scores = scores.cpu()
     labels = labels.cpu()
@@ -11,8 +12,8 @@ def recall(scores, labels, k):
     hit = []
     for score, target in zip(cut, labels):
         hit.append(np.isin(target - 1, score))
-    #hit = labels.gather(1, cut)
-    #return (hit.sum(1).float() / labels.sum(1).float()).mean().item()
+    # hit = labels.gather(1, cut)
+    # return (hit.sum(1).float() / labels.sum(1).float()).mean().item()
     return np.mean(hit)
 
 
@@ -29,7 +30,6 @@ def ndcg(scores, labels, k):
     dcg = (hit.float() * weights).sum(1)
     idcg = torch.Tensor([weights[:min(n, k)].sum() for n in labels.sum(1)])
     ndcg = dcg / idcg
-    print(ndcg.mean())
     return ndcg.mean()
 
 
@@ -56,6 +56,11 @@ def recalls_and_ndcgs_for_ks(scores, labels, ks):
     return metrics
 
 
+# I used only this function.
+# for BERT4Rec, recalls calculated by (hits / label's answer #)
+# for SRGNN, recalls calculated by hits' mean, cuz label's answer # always 1.
+# for BERT4Rec, ndcg calculated by (dcg / idcg).mean()
+# for SRGNN, ndcg calculated by dcg.mean(), cuz idcg always 1. (answer# = 1)
 def recalls_and_ndcgs_for_ks_sr(scores, labels, ks):
     metrics = {}
 
@@ -77,7 +82,6 @@ def recalls_and_ndcgs_for_ks_sr(scores, labels, ks):
        position = torch.arange(2, 2+k)
        weights = torch.cat([1 / torch.log2(position.float()), torch.FloatTensor([0])])
        dcg = weights[hits]
-       idcg = torch.Tensor([weights[:min(n, k)].sum() for n in labels])
        ndcg = dcg.mean().item()
        metrics['NDCG@%d' % k] = ndcg
 

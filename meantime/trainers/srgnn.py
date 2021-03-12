@@ -1,7 +1,7 @@
 from .base import AbstractTrainer
 from .utils import recalls_and_ndcgs_for_ks_sr
 
-## need to change : after create model.
+
 class SrgnnTrainer(AbstractTrainer):
     def __init__(self, args, model, train_loader, val_loader, test_loader, export_root):
         super().__init__(args, model, train_loader, val_loader, test_loader, export_root)
@@ -19,18 +19,9 @@ class SrgnnTrainer(AbstractTrainer):
     def calculate_loss(self, batch):
         d = self.model(batch)
         loss = d['loss']
-        #loss = (loss * loss_cnt).sum() / loss_cnt.sum()
         return loss
 
     def calculate_metrics(self, batch):
-        """
-        labels = batch['labels']
-        scores = self.model(batch)['scores']  # B x C
-        # scores = scores.gather(1, candidates)  # B x C
-
-        metrics = recalls_and_ndcgs_for_ks(scores, labels, self.metric_ks)
-        return metrics
-        """
         d = self.model(batch)
         scores = d['logits']
         labels = d['labels']

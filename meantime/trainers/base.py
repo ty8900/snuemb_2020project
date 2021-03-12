@@ -114,7 +114,6 @@ class AbstractTrainer(metaclass=ABCMeta):
                     self.model.module.load(weight_path)
                 else:
                     self.model.load(weight_path)
-                # self.validate(epoch, accum_iter, mode='test')  # test result at best model
                 self.validate(best_epoch, accum_iter, mode='test')  # test result at best model
                 break
 
