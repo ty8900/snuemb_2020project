@@ -158,8 +158,7 @@ class SrgnnEvalDataset(data_utils.Dataset):
         self.output_days = args.dataloader_output_days
         self.output_user = args.dataloader_output_user
 
-        # is it needed?
-        # self.neg_samples = neg_samples
+        self.neg_samples = neg_samples
         
     def __len__(self):
         return len(self.positions)
@@ -174,7 +173,12 @@ class SrgnnEvalDataset(data_utils.Dataset):
         end = pos + 1
         seq = seq[beg:end]
         # answer : the last item (in position)
-        labels = [seq[-1]]
+        answer = [seq[-1]]
+
+        # make candidate
+        candidates = answer + self.neg_samples[user]
+        labels = [1] + [0] * len(self.neg_samples[user])
+
         # we use 5~10 length session to predict test target.
         # 너무 긴 세션으로 예측 시 성능 저하
         curr = np.random.randint(5, 10)
@@ -210,5 +214,6 @@ class SrgnnEvalDataset(data_utils.Dataset):
              'labels': torch.LongTensor(labels),
              'masks': torch.LongTensor(masks),
              'graph': torch.FloatTensor(graph_A),
-             'item': torch.LongTensor(item_indices)}
+             'item': torch.LongTensor(item_indices),
+             'candidates': torch.LongTensor(candidates)}
         return d

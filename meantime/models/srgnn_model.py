@@ -132,13 +132,20 @@ class SrgnnModel(SrgnnBaseModel):
         vi = self.embedding.weight[1:].transpose(1, 0)
 
         # get final output B x I(item #), prob of next item
-        return torch.matmul(global_emb, vi)
+        # train : B x I
+        # test : B x C
+        if 'candidates' in d.keys():
+            c_emb = self.embedding(d['candidates'])
+            return (global_emb.unsqueeze(1) * c_emb).sum(-1)
+        else:
+            return torch.matmul(global_emb, vi)
 
     # get scores(preds) with hit, mrr
     # not used actually, I used NDCG, Recall where calculated in Trainer, not here
     # for debugging only
     def get_scores(self, d, logits):
         # logits : B x I
+
         scores = logits.topk(20)[1].cpu()
         targets = d['labels'].cpu()
         masks = d['masks'].cpu()

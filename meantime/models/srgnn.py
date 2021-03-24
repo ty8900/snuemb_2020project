@@ -1,4 +1,5 @@
 from meantime.models.base import BaseModel
+import matplotlib.pyplot as plt
 
 import torch.nn as nn
 from abc import *
